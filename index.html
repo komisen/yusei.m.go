@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>ムーライ GO</title>
+        <style>
+            #mapDiv {width:100%;height:400px;}
+        </style>
+    </head>
+    
+	<body>
+        <div id="txt2">表示されている村井に近づいてください</div>
+        <div id="mapDiv"></div>
+        <img id="getImg" src="" hidden>
+        <canvas id="cap" width="300" height="60"></canvas>
+        <div id="txt">ここにデータを表示</div>
+        
+		<script>
+            var mapDiv = document.getElementById("mapDiv");
+            var gmap;
+            var mark;
+
+            var murai=[];
+            var captured =[];
+            loadMurai();
+            var getImg = document.getElementById("getImg");
+            getImg.width=300;
+            getImg.height=300;
+            var canvas = document.getElementById("cap");
+            var context = canvas.getContext("2d");
+            context.fillStyle = "rgb(153, 217, 234)";
+            context.fillRect(0,0,300,60);
+
+
+		navigator.geolocation.watchPosition( (position) =>{
+			var lat = position.coords.latitude;
+			var lng = position.coords.longitude;
+			var accu = position.coords.accuracy;
+            showMyPos(lat, lng);
+            calcDistance(lat,lng)
+		});
+
+        function showMyPos(lat ,lng) {
+            var myPos = new google.maps.LatLng(lat,lng);
+            gmap.setCenter(myPos);
+            mark.setPosition(myPos);
+
+        }
+
+        function initMap() {
+            navigator.geolocation.getCurrentPosition( (position) => {
+                var lat = position.coords.latitude;
+                var lng = position.coords.longitude;
+                var initPos = new google.maps.LatLng(lat, lng);
+                gmap = new google.maps.Map(mapDiv, {
+                    center: initPos,
+                    zoom: 18
+                });
+                mark = new google.maps.Marker({
+                    map: gmap,
+                    position: initPos,
+                });
+                placeMurai();
+            }, (error) => {
+            }, {
+                enableHighAccuracy:　true
+            });
+        }
+
+        function loadMurai(){
+            var req =new XMLHttpRequest();
+            req.addEventListener("readystatechange",() => {
+                if(req.readyState === 4 && req.status === 200) {
+                    murai = JSON.parse(req.responseText);
+                }
+            });
+            req.open("GET", "murai.json");
+            req.send();
+        }        
+        function placeMurai(){
+            var muraiMark =[];
+            for(var i =0;i<murai.length;i++) {
+                var pos=new google.maps.LatLng(murai[i].lat,murai[i].lng);
+                var img ={
+                    url: murai[i].img,
+                    scaledSize: new google.maps.Size(60, 60)
+                };
+                    muraiMark[i]= new google.maps.Marker({
+                        map: gmap,
+                        position: pos,
+                        icon: img,
+                        title: murai[i].name
+                    });
+                    captured[i] = false;
+                }
+        }
+
+        function calcDistance(lat,lng){
+            var distance =[];
+            var myPos =new google.maps.LatLng(lat,lng);
+            for(var i =0;i< murai.length;i++){
+                var pos =  new google.maps.LatLng(murai[i].lat, murai[i].lng);
+                distance[i] =google.maps.geometry.spherical.computeDistanceBetween(myPos, pos);
+                if(distance[i]<50 && captured[i] === false){
+                    captured[i] = true;
+                    getImg.src = murai[i].img;
+                    var x=i*60;
+                    var y=0;
+                    var w=60;
+                    var h=60;
+                    getImg.onload = function(){
+                    context.drawImage(getImg, x, y, w, h);
+                    }
+                    getImg.hidden = false;
+                    var txt2 = document.getElementById("txt2");
+                    txt2.innerHTML = "画像をタップしてください";
+                    mapDiv.hidden = true;
+                    getImg.addEventListener("click",() => {
+                        getImg.hidden = true;
+                        txt2.innerHTML = "表示されている村井に近づいてください";
+                        mapDiv.hidden = false;
+                    });
+                }
+            }
+        }
+		
+
+        navigator.geolocation.watchPosition( (position) =>{
+			var lat = position.coords.latitude;
+			var lng = position.coords.longitude;
+			var accu = position.coords.accuracy;
+			displayData(lat, lng, accu);
+		}, (error) => {
+		}, {
+			enableHighAccuracy: true
+		});
+		
+		function displayData(lat,lng,accu){
+			var txt = document.getElementById("txt");
+		txt.innerHTML = "緯度,経度:"+lat+","+lng+"<br>"+"精度:"+accu;
+		}
+            </script>
+
+
+        </script>
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBixfi0mDr68giUipeMjI4_UydrNOp4AmU&callback=initMap&libraries=geometry">
+        </script>
+        
+	</body>
+	</html>
